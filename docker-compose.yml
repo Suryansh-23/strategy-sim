@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
   slippage-sentinel:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: slippage-sentinel
+    container_name: strategy-sim
     restart: unless-stopped
     ports:
       - "${PORT:-8787}:8787"
@@ -22,7 +22,8 @@ services:
     env_file:
       - .env
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8787/.well-known/agent.json"]
+      test:
+        ["CMD", "curl", "-f", "http://localhost:8787/.well-known/agent.json"]
       interval: 30s
       timeout: 10s
       retries: 3

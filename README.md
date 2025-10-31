@@ -1,111 +1,101 @@
-# Slippage Sentinel
+# Morpho Blue Looping Simulator
 
-Estimate safe slippage tolerance for any swap route across Ethereum, Base, Arbitrum, and BNB Smart Chain. Complete with pool depth analysis, trade size projections, and volatility signals.
+Simulate recursive lending loops on Morpho Blue (Base) before committing on-chain. The service returns leverage stats, health factor trajectories, stress scenarios, and an executable action plan for WETH/USDC markets with deterministic pricing and optional Kyber quotes.
 
 ## Quick Start
 
-### 1. Install dependencies
+1. **Install dependencies**
+   ```bash
+   bun install
+   ```
+2. **Configure environment**
+   Copy `.env.example` and set the values you need (payment wallet, facilitator, etc.).
+   ```bash
+   cp .env.example .env
+   ```
+3. **Run the development server**
+   ```bash
+   bun run dev
+   ```
+   The agent listens on `http://localhost:8787` and exposes `/.well-known/agent.json` plus the paid entrypoint `/entrypoints/simulateLooping/invoke`.
+
+## Paying & Invoking
+
+Use the helper script to settle the 402 mandate and invoke the simulator:
 ```bash
-bun install
+PRIVATE_KEY=0x... bun run pay:call
 ```
+Optional environment overrides:
+- `API_BASE_URL` – default `http://localhost:8787`
+- `START_CAPITAL`, `TARGET_LTV`, `LOOPS` – quick value overrides
+- `PRICE_WETHUSD` – supply a deterministic spot price
 
-### 2. Configure environment
-Copy `.env.example` then fill in the keys (payment wallet, facilitator, API keys, etc.). Minimal local set:
+You can also pass a raw payload as the second CLI argument:
 ```bash
-cp .env.example .env
+bun run pay:call '{"protocol":"morpho-blue","chain":"base","collateral":{"symbol":"WETH","decimals":18},"debt":{"symbol":"USDC","decimals":6},"start_capital":"2","target_ltv":0.55,"loops":4}'
 ```
 
-### 3. Generate manifest (after every config change)
-```bash
-bun run manifest
-```
+## API Contract
 
-### 4. Run the development server
-```bash
-bun run dev
-```
-`http://localhost:8787/.well-known/agent.json` now serves the agent manifest.
+- **Method:** `POST /entrypoints/simulateLooping/invoke`
+- **Price:** `$0.20 USD` via x402
+- **Required fields:**
+  ```json
+  {
+    "protocol": "morpho-blue",
+    "chain": "base",
+    "collateral": { "symbol": "WETH", "decimals": 18 },
+    "debt": { "symbol": "USDC", "decimals": 6 },
+    "start_capital": "1.0",
+    "target_ltv": 0.6,
+    "loops": 3
+  }
+  ```
+- **Optional:** `price`, `swap_model`, `oracle`, `rates`, `horizon_days`, `scenarios`, `risk_limits`
 
-## Invoke Locally
-
-### Without payment (inspect 402)
-```bash
-curl -X POST http://localhost:8787/entrypoints/getSafeSlippage/invoke \
-  -H "Content-Type: application/json" \
-  -d '{"input":{"token_in":"0x4200000000000000000000000000000000000006","token_out":"0x2f2a2543b76a4166549f7aab2e75bef0aef033d0","amount_in":10,"route_hint":"base"}}'
-```
-You receive a 402 response describing the mandate.
-
-### With payment (helper script)
-```bash
-bun run pay:call
-```
-The script reads `.env`, signs an x402 payment, retries the request, and prints the slippage recommendation plus decoded receipt.
-By default the helper evaluates all supported chains; set `TOKEN_IN`, `TOKEN_OUT`, `AMOUNT_IN`, `ROUTE_HINT`, etc. to override:
-```bash
-TOKEN_IN=0x4200000000000000000000000000000000000006 TOKEN_OUT=0x2f2a2543b76a4166549f7aab2e75bef0aef033d0 AMOUNT_IN=100 ROUTE_HINT=ethereum bun run pay:call
-```
-
-## Endpoint Specification
-
-| Field | Details |
-| --- | --- |
-| **Path** | `/entrypoints/getSafeSlippage/invoke` |
-| **Method** | POST (x402 exact payment, invoke price `0.02 USDC`) |
-| **Input** | `{ token_in, token_out, amount_in, route_hint }` |
-| **Output** | `{ min_safe_slip_bps, pool_depths, recent_trade_size_p95, volatility_index }` |
-| **Chains** | `ethereum`, `base`, `arbitrum`, `bsc` |
-
-Example success payload:
-```json
-{
-  "min_safe_slip_bps": 50,
-  "pool_depths": 1500000.50,
-  "recent_trade_size_p95": 50000.00,
-  "volatility_index": 2.50
-}
-```
-
-## Supported Networks
-
-- Ethereum 
-- Base (Tested on production)
-- Arbitrum
-- BSC (Binance Smart Chain)
-- Polygon
-- Optimism
-- Avalanche
-- Fantom
-
-## Environment Variables
-
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `PRIVATE_KEY` | Yes | Wallet that signs x402 requests (and receives payments if `PAY_TO` points to same address). |
-| `FACILITATOR_URL` | Yes | Usually `https://facilitator.daydreams.systems`. |
-| `PAY_TO` | Yes | Recipient wallet for the invoke payment. |
-| `NETWORK` | Yes | Payment network (e.g. `base`, `base-sepolia`). |
-| `DEX_SCREENER_BASE_URL` | Optional | Override default DexScreener API URL (default: `https://api.dexscreener.com`). |
-| `GECKO_TERMINAL_BASE_URL` | Optional | Override default GeckoTerminal API URL (default: `https://api.geckoterminal.com`). |
-| `DEFAULT_PRICE` | Optional | Default x402 price when an entrypoint omits `price`. |
-| `API_BASE_URL` | Optional | Use when deploying (manifest generation). |
-| `PORT` | Optional | Server port (default: 8787). |
+Successful responses follow the `LoopingSimulationResult` schema defined in `src/types.ts`, including summary metrics, a full time series, stress outcomes, action plan, and a receipt that embeds the provenance hash.
 
 ## Testing & QA
 
 ```bash
-bun test          # unit tests (slippage calculation logic)
-bunx tsc --noEmit # type checking
-bun run lint      # linting
+bun test             # unit and integration tests
+bunx tsc --noEmit    # strict type checking
+bun run lint         # linting
 ```
 
-## Deployment Checklist
+## Environment Variables
 
-- [ ] Update `.env` with production values (API base URL, facilitators, payment wallet).
-- [ ] `bun run manifest` with `API_BASE_URL` pointing to deployed domain.
-- [ ] Deploy to Vercel: `bunx vercel login && bunx vercel deploy`.
-- [ ] Confirm `/.well-known/agent.json` is reachable at the deployed URL.
-- [ ] Run `bun run pay:call` against production URL to verify x402 flow.
-- [ ] Update this README with the live endpoint URL.
+| Variable | Required | Description |
+| --- | --- | --- |
+| `PRIVATE_KEY` | For script | Wallet signing x402 payments |
+| `FACILITATOR_URL` | Yes | x402 facilitator URL (default: Coinbase) |
+| `PAY_TO` | Yes | Address that receives invoke payments |
+| `NETWORK` | Yes | Payment network (`base` or `base-sepolia`) |
+| `KYBER_AGGREGATOR_BASE_URL` | Optional | Override Kyber GET route base URL |
+| `PORT` | Optional | Local port for dev server (default: 8787) |
 
-Happy swapping!
+## Project Layout
+
+```
+.well-known/agent.json   # Agent manifest
+api/index.ts             # Hono + x402 server bootstrap
+src/adapters/            # Morpho fixtures & Kyber client
+src/core/                # Pure simulation engine
+src/models/              # AMM + oracle models
+src/risk/                # Policy checks
+src/schema.ts            # Runtime validation (zod)
+src/types.ts             # Shared TypeScript interfaces
+test/                    # bun test suites
+```
+
+## Assumptions
+
+- MVP targets the Base WETH/USDC market with fixture-sourced parameters (LLTV 0.86, 5% liquidation incentive).
+- Borrow/supply APRs default to 5.9% / 3.25% unless overridden in the request.
+- When no swap model is provided the service queries KyberSwap V1 and caches responses for 30 seconds; for tests or fully offline use provide a constant-product swap model.
+
+## Next Steps
+
+- Replace APR snapshots with live Morpho IRM reads.
+- Extend stress testing (rate shifts, oracle lag, multi-leg scenarios).
+- Introduce additional strategies via new entrypoints once Phase 1 stabilises.

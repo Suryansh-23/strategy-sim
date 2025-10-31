@@ -1,35 +1,30 @@
 {
-  "name": "slippage-sentinel",
   "version": "0.1.0",
-  "description": "Estimate safe slippage tolerance for any route",
-  "endpoints": [
+  "name": "Morpho Blue Looping Simulator",
+  "description": "Deterministic simulator for recursive lending loops on Morpho Blue's Base WETH/USDC market.",
+  "icon": "https://avatars.githubusercontent.com/u/14101776?s=200&v=4",
+  "payment": {
+    "amount": "0.20",
+    "currency": "USD"
+  },
+  "entrypoints": [
     {
-      "key": "getSafeSlippage",
-      "description": "Estimate safe slippage tolerance for a given swap route",
-      "input": {
-        "token_in": "string",
-        "token_out": "string",
-        "amount_in": "number",
-        "route_hint": "string?"
+      "path": "/entrypoints/simulateLooping/invoke",
+      "method": "POST",
+      "price": {
+        "amount": "0.20",
+        "currency": "USD"
       },
-      "output": {
-        "min_safe_slip_bps": "number",
-        "pool_depths": "number",
-        "recent_trade_size_p95": "number",
-        "volatility_index": "number",
-        "payment": {
-          "success": "boolean",
-          "transaction": "string",
-          "network": "string",
-          "payer": "string"
-        }
+      "description": "Simulate a looping strategy on Morpho Blue (Base WETH/USDC).",
+      "input": {
+        "protocol": "morpho-blue",
+        "chain": "base",
+        "collateral": { "symbol": "WETH", "decimals": 18 },
+        "debt": { "symbol": "USDC", "decimals": 6 },
+        "start_capital": "1",
+        "target_ltv": 0.6,
+        "loops": 3
       }
     }
-  ],
-  "payments": {
-    "facilitatorUrl": "https://facilitator.daydreams.systems",
-    "payTo": "0x892e4feed0128f11d486fd451aff4a78171c8748",
-    "network": "base",
-    "defaultPrice": "0.02"
-  }
+  ]
 }
