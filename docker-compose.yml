@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  slippage-sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: slippage-sentinel
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8787}:8787"
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - PAY_TO=${PAY_TO}
+      - FACILITATOR_URL=${FACILITATOR_URL:-https://facilitator.daydreams.systems}
+      - DEFAULT_PRICE=${DEFAULT_PRICE:-0.02}
+      - NETWORK=${NETWORK:-base}
+      - DEX_SCREENER_BASE_URL=${DEX_SCREENER_BASE_URL:-https://api.dexscreener.com}
+      - GECKO_TERMINAL_BASE_URL=${GECKO_TERMINAL_BASE_URL:-https://api.geckoterminal.com}
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8787/.well-known/agent.json"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - slippage-network
+
+networks:
+  slippage-network:
+    driver: bridge

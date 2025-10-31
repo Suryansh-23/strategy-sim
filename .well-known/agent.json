@@ -1,0 +1,35 @@
+{
+  "name": "slippage-sentinel",
+  "version": "0.1.0",
+  "description": "Estimate safe slippage tolerance for any route",
+  "endpoints": [
+    {
+      "key": "getSafeSlippage",
+      "description": "Estimate safe slippage tolerance for a given swap route",
+      "input": {
+        "token_in": "string",
+        "token_out": "string",
+        "amount_in": "number",
+        "route_hint": "string?"
+      },
+      "output": {
+        "min_safe_slip_bps": "number",
+        "pool_depths": "number",
+        "recent_trade_size_p95": "number",
+        "volatility_index": "number",
+        "payment": {
+          "success": "boolean",
+          "transaction": "string",
+          "network": "string",
+          "payer": "string"
+        }
+      }
+    }
+  ],
+  "payments": {
+    "facilitatorUrl": "https://facilitator.daydreams.systems",
+    "payTo": "0x892e4feed0128f11d486fd451aff4a78171c8748",
+    "network": "base",
+    "defaultPrice": "0.02"
+  }
+}
