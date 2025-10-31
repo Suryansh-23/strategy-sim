@@ -51,7 +51,7 @@ export interface SimulationArtifacts {
   };
 }
 
-export const SIM_ENGINE_VERSION = "0.1.0";
+export const SIM_ENGINE_VERSION = "0.2.0";
 
 function resolvePrice(
   symbol: string,
@@ -225,6 +225,39 @@ function runPriceJumpScenario(params: {
   };
 }
 
+function evaluateSeries(
+  series: Array<LoopingSimulationResult["time_series"][number]>,
+  lltv: number,
+  collateralPriceUsd: number,
+  debtPriceUsd: number,
+): { minHf: number; liquidated: boolean; liqLossUsd?: number } {
+  let minHf = Number.POSITIVE_INFINITY;
+  let liqLossUsd: number | undefined;
+
+  for (const point of series) {
+    const hf = point.hf;
+    if (hf < minHf) {
+      minHf = hf;
+      if (hf < 1) {
+        const collateralValueUsd = point.collateral * collateralPriceUsd;
+        const debtValueUsd = point.debt * debtPriceUsd;
+        const shortfall = debtValueUsd - collateralValueUsd * lltv;
+        liqLossUsd = shortfall > 0 ? shortfall : undefined;
+      }
+    }
+  }
+
+  if (!Number.isFinite(minHf)) {
+    minHf = Number.POSITIVE_INFINITY;
+  }
+
+  return {
+    minHf,
+    liquidated: minHf < 1,
+    liqLossUsd,
+  };
+}
+
 export async function simulateLooping(
   input: LoopingSimulationInput,
   deps: SimulationDependencies,
@@ -358,6 +391,55 @@ export async function simulateLooping(
           liquidated: outcome.liquidated,
           liq_loss_usd: outcome.liqLossUsd,
         });
+      } else if (scenario.type === "rates_shift") {
+        const delta = scenario.borrow_apr_delta_bps / 10_000;
+        const shiftedSeries = buildTimeSeries({
+          collateralAmount: runningCollateral,
+          debtAmount: runningDebt,
+          horizonDays,
+          supplyApr,
+          borrowApr: borrowApr + delta,
+          collateralPriceUsd,
+          debtPriceUsd,
+          lltv: marketSnapshot.market.lltv,
+          oracleLagSeconds,
+        });
+        const outcome = evaluateSeries(
+          shiftedSeries,
+          marketSnapshot.market.lltv,
+          collateralPriceUsd,
+          debtPriceUsd,
+        );
+        stressResults.push({
+          scenario: `rates_shift:${scenario.borrow_apr_delta_bps}`,
+          min_hf: outcome.minHf,
+          liquidated: outcome.liquidated,
+          liq_loss_usd: outcome.liqLossUsd,
+        });
+      } else if (scenario.type === "oracle_lag") {
+        const laggedSeries = buildTimeSeries({
+          collateralAmount: runningCollateral,
+          debtAmount: runningDebt,
+          horizonDays,
+          supplyApr,
+          borrowApr,
+          collateralPriceUsd,
+          debtPriceUsd,
+          lltv: marketSnapshot.market.lltv,
+          oracleLagSeconds: scenario.lag_seconds,
+        });
+        const outcome = evaluateSeries(
+          laggedSeries,
+          marketSnapshot.market.lltv,
+          collateralPriceUsd,
+          debtPriceUsd,
+        );
+        stressResults.push({
+          scenario: `oracle_lag:${scenario.lag_seconds}`,
+          min_hf: outcome.minHf,
+          liquidated: outcome.liquidated,
+          liq_loss_usd: outcome.liqLossUsd,
+        });
       }
     }
   }
@@ -373,10 +455,18 @@ export async function simulateLooping(
 
   const slipCostNumber = bigToNumber(slippageCostUsd);
 
+  const equityStart = timeSeries[0]?.equity ?? 0;
+  const equityEnd = timeSeries[timeSeries.length - 1]?.equity ?? equityStart;
+  const horizonYears = horizonDays / 365;
+  const netApr =
+    equityStart > 0 && horizonYears > 0
+      ? (equityEnd - equityStart) / equityStart / horizonYears
+      : supplyApr - borrowApr;
+
   const summary = {
     loops_done: actionPlan.length,
     gross_leverage: grossLeverage,
-    net_apr: supplyApr - borrowApr,
+    net_apr: netApr,
     hf_now: hfNow,
     liq_price: liqPrice,
     slip_cost_usd: slipCostNumber,

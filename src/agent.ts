@@ -67,7 +67,7 @@ app.post("/entrypoints/simulateLooping/invoke", async (c) => {
 
     const input: LoopingSimulationInput = parsed.data;
 
-    const marketSnapshot = loadMorphoMarketSnapshot({
+    const marketSnapshot = await loadMorphoMarketSnapshot({
       protocol: input.protocol,
       chain: input.chain,
       collateralSymbol: input.collateral.symbol,

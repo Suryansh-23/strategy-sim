@@ -1,12 +1,12 @@
 const manifest = {
   name: "morpho-blue-looping-sim",
-  version: "0.1.0",
-  description: "Simulate recursive lending loops on Morpho Blue (Base)",
+  version: "0.2.0",
+  description: "Simulate recursive lending loops on Morpho Blue (Base) with live market data",
   endpoints: [
     {
       key: "simulateLooping",
       description:
-        "Run a deterministic looping simulation on Morpho Blue's Base WETH/USDC market",
+        "Run a looping simulation on Morpho Blue's Base WETH/USDC market using live parameters",
       method: "POST",
       path: "/entrypoints/simulateLooping/invoke",
       price: "$0.20",

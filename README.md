@@ -29,6 +29,7 @@ Optional environment overrides:
 - `API_BASE_URL` – default `http://localhost:8787`
 - `START_CAPITAL`, `TARGET_LTV`, `LOOPS` – quick value overrides
 - `PRICE_WETHUSD` – supply a deterministic spot price
+- `MORPHO_USE_LIVE=1` – force live market fetch (otherwise automatic with fallback)
 
 You can also pass a raw payload as the second CLI argument:
 ```bash
@@ -53,6 +54,11 @@ bun run pay:call '{"protocol":"morpho-blue","chain":"base","collateral":{"symbol
   ```
 - **Optional:** `price`, `swap_model`, `oracle`, `rates`, `horizon_days`, `scenarios`, `risk_limits`
 
+Supported stress scenarios:
+- `price_jump` – apply collateral price shock at a specific day
+- `rates_shift` – shift borrow APR by the provided delta (basis points)
+- `oracle_lag` – recompute trajectory with a slower oracle heartbeat
+
 Successful responses follow the `LoopingSimulationResult` schema defined in `src/types.ts`, including summary metrics, a full time series, stress outcomes, action plan, and a receipt that embeds the provenance hash.
 
 ## Testing & QA
@@ -71,6 +77,9 @@ bun run lint         # linting
 | `FACILITATOR_URL` | Yes | x402 facilitator URL (default: Coinbase) |
 | `PAY_TO` | Yes | Address that receives invoke payments |
 | `NETWORK` | Yes | Payment network (`base` or `base-sepolia`) |
+| `MORPHO_BLUE_GRAPH_URL` | Optional | Override Morpho Blue GraphQL endpoint |
+| `MORPHO_LIVE_DISABLED` | Optional | Set to `1` to use fixture parameters only |
+| `MORPHO_LIVE_CACHE_MS` | Optional | Cache TTL for live market snapshot (default 30000ms) |
 | `KYBER_AGGREGATOR_BASE_URL` | Optional | Override Kyber GET route base URL |
 | `PORT` | Optional | Local port for dev server (default: 8787) |
 
@@ -90,12 +99,12 @@ test/                    # bun test suites
 
 ## Assumptions
 
-- MVP targets the Base WETH/USDC market with fixture-sourced parameters (LLTV 0.86, 5% liquidation incentive).
-- Borrow/supply APRs default to 5.9% / 3.25% unless overridden in the request.
+- The primary market is Base WETH/USDC; live market data is fetched from Morpho's Blue API with fixture fallback.
+- Borrow/supply APRs default to the latest live snapshot (or 5.9% / 3.25% when offline).
 - When no swap model is provided the service queries KyberSwap V1 and caches responses for 30 seconds; for tests or fully offline use provide a constant-product swap model.
 
 ## Next Steps
 
-- Replace APR snapshots with live Morpho IRM reads.
-- Extend stress testing (rate shifts, oracle lag, multi-leg scenarios).
-- Introduce additional strategies via new entrypoints once Phase 1 stabilises.
+- Model time-varying oracle paths so oracle-lag scenarios incorporate stale price windows.
+- Add sensitivity outputs (e.g. dHF/dPrice) and Monte Carlo stress harness.
+- Introduce additional strategies via new entrypoints once Phase 2 stabilises.

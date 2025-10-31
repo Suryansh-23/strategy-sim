@@ -5,9 +5,11 @@ import { simulateLooping, createAmmSwapProvider } from "../src/core/looping.js";
 import { loadMorphoMarketSnapshot } from "../src/adapters/morpho.js";
 import type { LoopingSimulationInput } from "../src/types.js";
 
+process.env.MORPHO_LIVE_DISABLED = "1";
+
 describe("looping simulation", () => {
   test("produces expected health factor for simple loop", async () => {
-    const snapshot = loadMorphoMarketSnapshot({
+    const snapshot = await loadMorphoMarketSnapshot({
       protocol: "morpho-blue",
       chain: "base",
       collateralSymbol: "WETH",
@@ -78,7 +80,7 @@ describe("looping simulation", () => {
   });
 
   test("accrues interest over horizon", async () => {
-    const snapshot = loadMorphoMarketSnapshot({
+    const snapshot = await loadMorphoMarketSnapshot({
       protocol: "morpho-blue",
       chain: "base",
       collateralSymbol: "WETH",
@@ -154,5 +156,76 @@ describe("looping simulation", () => {
 
     expect(day30.collateral).toBeCloseTo(expectedCollateral.toNumber(), 6);
     expect(day30.debt).toBeCloseTo(expectedDebt.toNumber(), 6);
+  });
+
+  test("rates shift scenario increases debt burden", async () => {
+    const snapshot = await loadMorphoMarketSnapshot({
+      protocol: "morpho-blue",
+      chain: "base",
+      collateralSymbol: "WETH",
+      debtSymbol: "USDC",
+    });
+
+    const input: LoopingSimulationInput = {
+      protocol: "morpho-blue",
+      chain: "base",
+      collateral: { symbol: "WETH", decimals: 18 },
+      debt: { symbol: "USDC", decimals: 6 },
+      start_capital: "1",
+      target_ltv: 0.5,
+      loops: 2,
+      price: {
+        WETHUSD: 2800,
+        USDCUSD: 1,
+      },
+      swap_model: {
+        type: "amm_xyk",
+        fee_bps: 20,
+        pool: {
+          base_reserve: 50_000,
+          quote_reserve: 140_000_000,
+        },
+      },
+      rates: {
+        supply_apr: snapshot.rates.supplyApr,
+        borrow_apr: snapshot.rates.borrowApr,
+      },
+      horizon_days: 30,
+      scenarios: [
+        {
+          type: "rates_shift",
+          borrow_apr_delta_bps: 300,
+        },
+      ],
+    };
+
+    const swapModel = input.swap_model;
+    if (!swapModel) throw new Error("swap model missing");
+
+    const swapProvider = createAmmSwapProvider({
+      feeBps: swapModel.fee_bps,
+      poolBaseReserve: swapModel.pool.base_reserve,
+      poolQuoteReserve: swapModel.pool.quote_reserve,
+      collateralPriceUsd: 2800,
+      debtPriceUsd: 1,
+    });
+
+    const priceMap = {
+      ...snapshot.defaultPrices,
+      ...input.price,
+    };
+
+    const simulation = await simulateLooping(input, {
+      marketSnapshot: snapshot,
+      priceMap,
+      swapProvider,
+    });
+
+    const baseMinHf = Math.min(
+      ...simulation.result.time_series.map((point) => point.hf),
+    );
+    const stress = simulation.result.stress[0];
+    expect(stress.scenario).toBe("rates_shift:300");
+    expect(stress.min_hf).toBeLessThanOrEqual(baseMinHf);
   });
 });

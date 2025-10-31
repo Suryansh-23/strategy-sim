@@ -1,7 +1,7 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "Morpho Blue Looping Simulator",
-  "description": "Deterministic simulator for recursive lending loops on Morpho Blue's Base WETH/USDC market.",
+  "description": "Looping simulator for Morpho Blue (Base) with live market parameters, IRM-aware rates and stress testing.",
   "icon": "https://avatars.githubusercontent.com/u/14101776?s=200&v=4",
   "payment": {
     "amount": "0.20",
@@ -15,7 +15,7 @@
         "amount": "0.20",
         "currency": "USD"
       },
-      "description": "Simulate a looping strategy on Morpho Blue (Base WETH/USDC).",
+      "description": "Simulate a looping strategy on Morpho Blue (Base WETH/USDC) with live market data.",
       "input": {
         "protocol": "morpho-blue",
         "chain": "base",

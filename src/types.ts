@@ -79,6 +79,11 @@ export interface MorphoMarketParams {
   irm: string;
   oracle_type: string;
   version?: string;
+  oracle_address?: `0x${string}`;
+  irm_address?: `0x${string}`;
+  market_id?: string;
+  data_source?: "fixture" | "live";
+  fetched_at?: number;
 }
 
 export interface LoopingSimulationResult {

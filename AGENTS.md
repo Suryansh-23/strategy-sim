@@ -222,7 +222,15 @@ To ensure a robust, maintainable implementation, adhere to the following princip
 - Phase 1 fixtures use Morpho Blue Base WETH/USDC parameters with LLTV `0.86`, liquidation incentive `0.05`, close factor `0.5`, and APR snapshots borrow `5.9%`, supply `3.25%`.
 - When `price` is omitted, the simulator falls back to fixture prices (`WETHUSD: 3200`, `USDCUSD: 1`). Callers can override per request.
 - Swap resolution prefers caller-provided constant-product models; otherwise it hits KyberSwap GET quotes with a 30-second in-memory cache.
-- Receipt provenance hashes the raw request payload, protocol parameters, merged price map, collected Kyber payloads, and engine version `0.1.0`.
+- Receipt provenance hashes the raw request payload, protocol parameters, merged price map, collected Kyber payloads, and engine version `0.2.0`.
+
+## Implementation Notes (2025-03-18)
+
+- Phase 2 enables live Morpho Blue data via the Blue GraphQL API with a 30s cache; set `MORPHO_LIVE_DISABLED=1` to force fixture (used in tests).
+- Live snapshots populate `protocol_params_used` with oracle/IRM addresses, market IDs, utilization, and timestamp; fixtures remain as fallback.
+- Stress engine now supports `rates_shift` (borrow APR delta) and `oracle_lag` scenarios alongside `price_jump`.
+- Net APR is derived from equity growth over the analysis horizon (slippage + financing costs reflected in the initial equity).
+- Next targets: dynamic oracle price paths and expanded sensitivity metrics before introducing new entrypoints.
 
 ## Instructions for the Coding Agent
 
