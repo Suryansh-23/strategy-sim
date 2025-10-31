@@ -28,7 +28,7 @@ PRIVATE_KEY=0x... bun run pay:call
 Optional environment overrides:
 - `API_BASE_URL` – default `http://localhost:8787`
 - `START_CAPITAL`, `TARGET_LTV`, `LOOPS` – quick value overrides
-- `PRICE_WETHUSD` – supply a deterministic spot price
+- `PRICE_WETHUSD` – supply a deterministic spot price (or add additional symbols like `WBTCUSD`)
 - `MORPHO_USE_LIVE=1` – force live market fetch (otherwise automatic with fallback)
 
 You can also pass a raw payload as the second CLI argument:
@@ -53,6 +53,18 @@ bun run pay:call '{"protocol":"morpho-blue","chain":"base","collateral":{"symbol
   }
   ```
 - **Optional:** `price`, `swap_model`, `oracle`, `rates`, `horizon_days`, `scenarios`, `risk_limits`
+
+Token specs accept optional on-chain addresses for disambiguation when multiple assets share a symbol:
+
+```json
+"collateral": {
+  "symbol": "wstETH",
+  "decimals": 18,
+  "address": "0x722e8645ff81919dfa44f1c6fda27affd2308a5d"
+}
+```
+
+Without an address the simulator resolves markets by symbol/decimals on Base; provide addresses for faster lookups and to avoid ambiguity.
 
 Supported stress scenarios:
 - `price_jump` – apply collateral price shock at a specific day
@@ -80,6 +92,9 @@ bun run lint         # linting
 | `MORPHO_BLUE_GRAPH_URL` | Optional | Override Morpho Blue GraphQL endpoint |
 | `MORPHO_LIVE_DISABLED` | Optional | Set to `1` to use fixture parameters only |
 | `MORPHO_LIVE_CACHE_MS` | Optional | Cache TTL for live market snapshot (default 30000ms) |
+| `MORPHO_MARKET_LIST_CACHE_MS` | Optional | Cache TTL for market list query (default 120000ms) |
+| `DEFAULT_MIN_HEALTH_FACTOR` | Optional | Policy minimum HF (default 1.1) |
+| `DEFAULT_MAX_LEVERAGE` | Optional | Policy maximum leverage (default 12) |
 | `KYBER_AGGREGATOR_BASE_URL` | Optional | Override Kyber GET route base URL |
 | `PORT` | Optional | Local port for dev server (default: 8787) |
 
@@ -99,12 +114,13 @@ test/                    # bun test suites
 
 ## Assumptions
 
-- The primary market is Base WETH/USDC; live market data is fetched from Morpho's Blue API with fixture fallback.
+- Base is the supported chain in this release; any listed Morpho Blue market on Base can be simulated when symbols/addresses resolve.
 - Borrow/supply APRs default to the latest live snapshot (or 5.9% / 3.25% when offline).
-- When no swap model is provided the service queries KyberSwap V1 and caches responses for 30 seconds; for tests or fully offline use provide a constant-product swap model.
+- When no swap model is provided the service queries KyberSwap V1 and caches responses with an LRU cache (30s TTL); provide a constant-product swap model for offline/deterministic runs.
+- Default policy envelope enforces `HF ≥ 1.1` and `leverage ≤ 12` unless overridden in `risk_limits`.
 
 ## Next Steps
 
 - Model time-varying oracle paths so oracle-lag scenarios incorporate stale price windows.
 - Add sensitivity outputs (e.g. dHF/dPrice) and Monte Carlo stress harness.
-- Introduce additional strategies via new entrypoints once Phase 2 stabilises.
+- Introduce additional strategies via new entrypoints once multi-market support stabilises.

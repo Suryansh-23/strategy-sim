@@ -1,8 +1,14 @@
 import { z } from "zod";
 
+const addressRegex = /^0x[a-fA-F0-9]{40}$/;
+
 const TokenSpecSchema = z.object({
   symbol: z.string().min(1),
   decimals: z.number().int().min(0).max(36),
+  address: z
+    .string()
+    .regex(addressRegex, "invalid address")
+    .optional(),
 });
 
 const SwapModelSpecSchema = z.object({

@@ -70,9 +70,19 @@ app.post("/entrypoints/simulateLooping/invoke", async (c) => {
     const marketSnapshot = await loadMorphoMarketSnapshot({
       protocol: input.protocol,
       chain: input.chain,
-      collateralSymbol: input.collateral.symbol,
-      debtSymbol: input.debt.symbol,
+      collateral: input.collateral,
+      debt: input.debt,
     });
+
+    const collateralAddress = marketSnapshot.tokens.collateral.address;
+    const debtAddress = marketSnapshot.tokens.debt.address;
+
+    if (!collateralAddress || !debtAddress) {
+      throw new HTTPException(400, {
+        message:
+          "Unable to resolve token addresses for selected market. Provide explicit addresses in the request.",
+      });
+    }
 
     if (input.collateral.decimals !== marketSnapshot.tokens.collateral.decimals) {
       throw new HTTPException(400, {
@@ -117,8 +127,8 @@ app.post("/entrypoints/simulateLooping/invoke", async (c) => {
           getQuote: (amountIn: BigNumber) =>
             getKyberQuote({
               chain: input.chain,
-              tokenIn: marketSnapshot.tokens.debt.address,
-              tokenOut: marketSnapshot.tokens.collateral.address,
+              tokenIn: debtAddress,
+              tokenOut: collateralAddress,
               amount: amountIn,
               slippageBps: 50,
             }),
@@ -145,7 +155,7 @@ app.post("/entrypoints/simulateLooping/invoke", async (c) => {
     if (!postCheck.ok) {
       simulation.result.canExecute = false;
       simulation.result.reason = postCheck.reasons.join("; ");
-    } else if (input.risk_limits) {
+    } else {
       simulation.result.canExecute = true;
     }
 

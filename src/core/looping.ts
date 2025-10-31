@@ -51,7 +51,7 @@ export interface SimulationArtifacts {
   };
 }
 
-export const SIM_ENGINE_VERSION = "0.2.0";
+export const SIM_ENGINE_VERSION = "0.3.0";
 
 function resolvePrice(
   symbol: string,

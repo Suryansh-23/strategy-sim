@@ -43,4 +43,17 @@ describe("risk checks", () => {
     expect(result.ok).toBe(false);
     expect(result.reasons[0]).toContain("health factor");
   });
+
+  test("applies default policy when limits omitted", () => {
+    const result = postSimulationRiskCheck({
+      healthFactor: 1.05,
+      grossLeverage: 10,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reasons).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("health factor"),
+      ]),
+    );
+  });
 });

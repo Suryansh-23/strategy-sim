@@ -232,6 +232,13 @@ To ensure a robust, maintainable implementation, adhere to the following princip
 - Net APR is derived from equity growth over the analysis horizon (slippage + financing costs reflected in the initial equity).
 - Next targets: dynamic oracle price paths and expanded sensitivity metrics before introducing new entrypoints.
 
+## Implementation Notes (2025-03-19)
+
+- Morpho adapter now resolves any Base market by symbol/decimals (addresses optional) with cached market lists; WETH/USDC fixture remains a deterministic fallback.
+- Kyber quote caching upgraded to an LRU strategy with configurable max entries/TTL to align with Phase 3 performance goals.
+- Default policy envelope enforced: HF ≥ 1.1 and leverage ≤ 12 unless overrides are passed in `risk_limits`.
+- Simulator version bumped to `0.3.0`; manifests/README updated to advertise multi-market support and new environment knobs.
+
 ## Instructions for the Coding Agent
 
 - **Setup:** Clone the provided boilerplate repository and remove application‑specific .ts files. Initialize a new npm project or reuse the existing configuration. Install dependencies such as bun or express, ethers, axios, bignumber.js, and any Morpho SDK packages.

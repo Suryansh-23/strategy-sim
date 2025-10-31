@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "name": "Morpho Blue Looping Simulator",
-  "description": "Looping simulator for Morpho Blue (Base) with live market parameters, IRM-aware rates and stress testing.",
+  "description": "Looping simulator for Morpho Blue (Base) spanning all markets with live parameters, IRM-aware rates and stress testing.",
   "icon": "https://avatars.githubusercontent.com/u/14101776?s=200&v=4",
   "payment": {
     "amount": "0.20",
@@ -15,7 +15,7 @@
         "amount": "0.20",
         "currency": "USD"
       },
-      "description": "Simulate a looping strategy on Morpho Blue (Base WETH/USDC) with live market data.",
+      "description": "Simulate a looping strategy on any Morpho Blue (Base) market with live data.",
       "input": {
         "protocol": "morpho-blue",
         "chain": "base",

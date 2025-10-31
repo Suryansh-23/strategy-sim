@@ -1,12 +1,12 @@
 import axios from "axios";
 import BigNumber from "bignumber.js";
-import NodeCache from "node-cache";
+import { LRUCache } from "lru-cache";
 
 const KYBER_CACHE_TTL_SECONDS = 30;
 
-const cache = new NodeCache({
-  stdTTL: KYBER_CACHE_TTL_SECONDS,
-  useClones: false,
+const cache = new LRUCache<string, KyberQuoteResult>({
+  max: Number(process.env.KYBER_CACHE_MAX_ENTRIES ?? 256),
+  ttl: KYBER_CACHE_TTL_SECONDS * 1000,
 });
 
 const DEFAULT_BASE_URL = "https://aggregator-api.kyberswap.com/best-route";
@@ -41,7 +41,7 @@ export async function getKyberQuote(params: KyberQuoteParams): Promise<KyberQuot
   }
 
   const cacheKey = buildCacheKey(params);
-  const cached = cache.get<KyberQuoteResult>(cacheKey);
+  const cached = cache.get(cacheKey);
   if (cached) {
     return cached;
   }
@@ -83,17 +83,13 @@ export async function getKyberQuote(params: KyberQuoteParams): Promise<KyberQuot
 }
 
 export function getKyberCacheSnapshot(): Record<string, KyberQuoteResult> {
-  const keys = cache.keys();
   const snapshot: Record<string, KyberQuoteResult> = {};
-  for (const key of keys) {
-    const value = cache.get<KyberQuoteResult>(key);
-    if (value) {
-      snapshot[key] = value;
-    }
-  }
+  cache.forEach((value, key) => {
+    snapshot[key] = value;
+  });
   return snapshot;
 }
 
 export function clearKyberCache(): void {
-  cache.flushAll();
+  cache.clear();
 }

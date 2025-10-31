@@ -1,6 +1,12 @@
 import type { LoopingSimulationInput, MorphoMarketParams } from "../types.js";
 
 const DEFAULT_MAX_LOOPS = 10;
+const DEFAULT_MIN_HEALTH_FACTOR = Number(
+  process.env.DEFAULT_MIN_HEALTH_FACTOR ?? 1.1,
+);
+const DEFAULT_MAX_LEVERAGE = Number(
+  process.env.DEFAULT_MAX_LEVERAGE ?? 12,
+);
 
 export interface RiskCheckResult {
   ok: boolean;
@@ -46,10 +52,15 @@ export function preSimulationRiskCheck(
 export function postSimulationRiskCheck(
   payload: PostSimulationCheck,
 ): RiskCheckResult {
-  const { healthFactor, grossLeverage, minHealthFactor, maxLeverage } = payload;
+  const {
+    healthFactor,
+    grossLeverage,
+    minHealthFactor = DEFAULT_MIN_HEALTH_FACTOR,
+    maxLeverage = DEFAULT_MAX_LEVERAGE,
+  } = payload;
   const reasons: string[] = [];
 
-  if (typeof minHealthFactor === "number" && healthFactor < minHealthFactor) {
+  if (healthFactor < minHealthFactor) {
     reasons.push(
       `final health factor ${healthFactor.toFixed(
         4,
@@ -57,7 +68,7 @@ export function postSimulationRiskCheck(
     );
   }
 
-  if (typeof maxLeverage === "number" && grossLeverage > maxLeverage) {
+  if (grossLeverage > maxLeverage) {
     reasons.push(
       `gross leverage ${grossLeverage.toFixed(4)} exceeds maximum ${maxLeverage}`,
     );

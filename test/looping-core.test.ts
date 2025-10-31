@@ -12,8 +12,16 @@ describe("looping simulation", () => {
     const snapshot = await loadMorphoMarketSnapshot({
       protocol: "morpho-blue",
       chain: "base",
-      collateralSymbol: "WETH",
-      debtSymbol: "USDC",
+      collateral: {
+        symbol: "WETH",
+        decimals: 18,
+        address: "0x4200000000000000000000000000000000000006",
+      },
+      debt: {
+        symbol: "USDC",
+        decimals: 6,
+        address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      },
     });
 
     const input: LoopingSimulationInput = {
@@ -83,8 +91,16 @@ describe("looping simulation", () => {
     const snapshot = await loadMorphoMarketSnapshot({
       protocol: "morpho-blue",
       chain: "base",
-      collateralSymbol: "WETH",
-      debtSymbol: "USDC",
+      collateral: {
+        symbol: "WETH",
+        decimals: 18,
+        address: "0x4200000000000000000000000000000000000006",
+      },
+      debt: {
+        symbol: "USDC",
+        decimals: 6,
+        address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      },
     });
 
     const input: LoopingSimulationInput = {
@@ -162,8 +178,16 @@ describe("looping simulation", () => {
     const snapshot = await loadMorphoMarketSnapshot({
       protocol: "morpho-blue",
       chain: "base",
-      collateralSymbol: "WETH",
-      debtSymbol: "USDC",
+      collateral: {
+        symbol: "WETH",
+        decimals: 18,
+        address: "0x4200000000000000000000000000000000000006",
+      },
+      debt: {
+        symbol: "USDC",
+        decimals: 6,
+        address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      },
     });
 
     const input: LoopingSimulationInput = {

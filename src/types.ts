@@ -1,6 +1,7 @@
 export interface TokenSpec {
   symbol: string;
   decimals: number;
+  address?: string;
 }
 
 export interface SwapModelSpec {
