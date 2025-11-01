@@ -13,7 +13,7 @@ const agentConfig: AgentKitConfig = {
     facilitatorUrl: FACILITATOR_URL,
     payTo: process.env.PAY_TO! as `0x${string}`,
     network: NETWORK,
-    defaultPrice: process.env.DEFAULT_PRICE || "0.20",
+    defaultPrice: process.env.DEFAULT_PRICE || "0.01",
   },
 };
 
@@ -42,7 +42,14 @@ addEntrypoint(simulateLoopingEntrypoint);
 
 const honoApp = new Hono();
 
-honoApp.use("*", async (c) => agentApp.fetch(c.req.raw));
+honoApp.use("*", async (c) => {
+  // console.debug(`Incoming request: ${c.req.method} ${c.req.url}`);
+  // const res = await agentApp.fetch(c.req.raw);
+  // console.debug(`Outgoing response: ${res.status} ${res.statusText}`);
+  // return res;
+  return agentApp.fetch(c.req.raw);
+});
+// honoApp.use("*", async (c) => agentApp.fetch(c.req.raw));
 
 const start = () => {
   console.log("Agent ready for deployment (Hono + AgentKit)");

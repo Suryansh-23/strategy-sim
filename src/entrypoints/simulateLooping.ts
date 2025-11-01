@@ -13,7 +13,10 @@ import {
   postSimulationRiskCheck,
   preSimulationRiskCheck,
 } from "../risk/canExecute.js";
-import { LoopingSimulationInputSchema } from "../schema.js";
+import {
+  LoopingSimulationInputSchema,
+  LoopingSimulationResultSchema,
+} from "../schema.js";
 import type {
   LoopingSimulationInput,
   LoopingSimulationResult,
@@ -48,6 +51,7 @@ export function createSimulateLoopingEntrypoint(options: {
     key: "simulateLooping",
     description: "Simulate a looping strategy on Morpho Blue (Base)",
     input: LoopingSimulationInputSchema,
+    output: LoopingSimulationResultSchema,
     async handler(ctx) {
       const headers = ctx.headers;
       const clientIp = resolveClientIp(headers);
@@ -269,8 +273,6 @@ export function createSimulateLoopingEntrypoint(options: {
           idempotency: idempotencyKey ?? null,
           can_execute: simulation.result.canExecute,
         });
-
-        console.debug("Returning simulation result to client");
         return { output: simulation.result };
       } catch (error) {
         console.error(
