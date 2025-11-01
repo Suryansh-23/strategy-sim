@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "bun --watch scripts/start.ts",
     "test": "bun test",
-    "build": "bun build --entrypoints ./src/index.ts --outdir ./dist",
     "lint": "eslint src test scripts --ext .ts",
     "pay:call": "bun run scripts/pay-and-call.ts",
     "manifest": "bun run scripts/generate-manifest.ts",
@@ -28,6 +27,7 @@
     "@typescript-eslint/parser": "^8.46.2",
     "eslint": "^9.38.0",
     "typescript": "^5.6.3",
-    "viem": "latest"
+    "viem": "latest",
+    "vercel": "^32.4.1"
   }
 }
