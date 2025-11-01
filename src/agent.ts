@@ -1,184 +1,65 @@
+import { createAgentApp, type AgentKitConfig } from "@lucid-dreams/agent-kit";
 import { Hono } from "hono";
-import { paymentMiddleware } from "x402-hono";
-import { exact } from "x402/schemes";
-import { HTTPException } from "hono/http-exception";
-import type BigNumber from "bignumber.js";
+import type { Network } from "x402-hono";
 
-import { LoopingSimulationInputSchema } from "./schema.js";
-import type { LoopingSimulationInput, LoopingSimulationResult } from "./types.js";
-import {
-  simulateLooping,
-  createAmmSwapProvider,
-  createKyberSwapProvider,
-} from "./core/looping.js";
-import { loadMorphoMarketSnapshot } from "./adapters/morpho.js";
-import { getKyberQuote } from "./adapters/kyber.js";
-import {
-  preSimulationRiskCheck,
-  postSimulationRiskCheck,
-} from "./risk/canExecute.js";
+import { createSimulateLoopingEntrypoint } from "./entrypoints/simulateLooping.js";
 
-const PAY_TO_ADDRESS =
-  (process.env.PAY_TO as `0x${string}` | undefined) ||
-  "0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429";
-const FACILITATOR_URL = (
-  process.env.FACILITATOR_URL || "https://facilitator.daydreams.systems"
-) as `${string}://${string}`;
-const NETWORK = (process.env.NETWORK as "base" | "base-sepolia") || "base";
-const ROUTE_PRICE = "$0.20";
+const FACILITATOR_URL = (process.env.FACILITATOR_URL ||
+  "https://facilitator.daydreams.systems") as `${string}://${string}`;
+const NETWORK = (process.env.NETWORK as Network) || "base";
 
-const app = new Hono();
+const agentConfig: AgentKitConfig = {
+  payments: {
+    facilitatorUrl: FACILITATOR_URL,
+    payTo: process.env.PAY_TO! as `0x${string}`,
+    network: NETWORK,
+    defaultPrice: process.env.DEFAULT_PRICE || "0.20",
+  },
+};
 
-app.get("/health", (c) => c.json({ ok: true }));
-
-app.use(
-  paymentMiddleware(
-    PAY_TO_ADDRESS,
-    {
-      "/entrypoints/simulateLooping/invoke": {
-        price: ROUTE_PRICE,
-        network: NETWORK,
-        config: {
-          description: "Simulate Morpho Blue looping strategy on Base",
-          mimeType: "application/json",
-        },
-      },
-    },
-    { url: FACILITATOR_URL },
-  ),
+const {
+  app: agentApp,
+  addEntrypoint,
+  payments,
+} = createAgentApp(
+  {
+    name: "morpho-blue-looping-sim",
+    version: "0.3.0",
+    description:
+      "Looping simulator for Morpho Blue (Base) with live market data and stress testing",
+  },
+  {
+    config: agentConfig,
+    useConfigPayments: true,
+  }
 );
 
-app.post("/entrypoints/simulateLooping/invoke", async (c) => {
-  try {
-    const contentType = c.req.header("content-type") || "";
-    if (!contentType.toLowerCase().includes("application/json")) {
-      throw new HTTPException(415, {
-        message: "Content-Type must be application/json",
-      });
-    }
-
-    const body = await c.req.json();
-    const parsed = LoopingSimulationInputSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new HTTPException(400, {
-        message: parsed.error.message,
-      });
-    }
-
-    const input: LoopingSimulationInput = parsed.data;
-
-    const marketSnapshot = await loadMorphoMarketSnapshot({
-      protocol: input.protocol,
-      chain: input.chain,
-      collateral: input.collateral,
-      debt: input.debt,
-    });
-
-    const collateralAddress = marketSnapshot.tokens.collateral.address;
-    const debtAddress = marketSnapshot.tokens.debt.address;
-
-    if (!collateralAddress || !debtAddress) {
-      throw new HTTPException(400, {
-        message:
-          "Unable to resolve token addresses for selected market. Provide explicit addresses in the request.",
-      });
-    }
-
-    if (input.collateral.decimals !== marketSnapshot.tokens.collateral.decimals) {
-      throw new HTTPException(400, {
-        message: `Collateral decimals mismatch. Expected ${marketSnapshot.tokens.collateral.decimals}.`,
-      });
-    }
-
-    if (input.debt.decimals !== marketSnapshot.tokens.debt.decimals) {
-      throw new HTTPException(400, {
-        message: `Debt decimals mismatch. Expected ${marketSnapshot.tokens.debt.decimals}.`,
-      });
-    }
-
-    const riskPre = preSimulationRiskCheck(input, marketSnapshot.market);
-    if (!riskPre.ok) {
-      throw new HTTPException(400, {
-        message: `Invalid request: ${riskPre.reasons.join(", ")}`,
-      });
-    }
-
-    const priceMap: Record<string, number> = {
-      ...marketSnapshot.defaultPrices,
-      ...(input.price ?? {}),
-    };
-
-    const collateralKey = `${input.collateral.symbol.toUpperCase()}USD`;
-    const debtKey = `${input.debt.symbol.toUpperCase()}USD`;
-
-    const collateralPriceUsd =
-      priceMap[collateralKey] ?? marketSnapshot.defaultPrices.WETHUSD;
-    const debtPriceUsd = priceMap[debtKey] ?? marketSnapshot.defaultPrices.USDCUSD;
-
-    const swapProvider = input.swap_model
-      ? createAmmSwapProvider({
-          feeBps: input.swap_model.fee_bps,
-          poolBaseReserve: input.swap_model.pool.base_reserve,
-          poolQuoteReserve: input.swap_model.pool.quote_reserve,
-          collateralPriceUsd,
-          debtPriceUsd,
-        })
-      : createKyberSwapProvider({
-          getQuote: (amountIn: BigNumber) =>
-            getKyberQuote({
-              chain: input.chain,
-              tokenIn: debtAddress,
-              tokenOut: collateralAddress,
-              amount: amountIn,
-              slippageBps: 50,
-            }),
-          collateralPriceUsd,
-          debtPriceUsd,
-          collateralDecimals: marketSnapshot.tokens.collateral.decimals,
-          debtDecimals: marketSnapshot.tokens.debt.decimals,
-        });
-
-    const simulation = await simulateLooping(input, {
-      marketSnapshot,
-      priceMap,
-      swapProvider,
-      oracleLagSeconds: input.oracle?.lag_seconds,
-    });
-
-    const postCheck = postSimulationRiskCheck({
-      healthFactor: simulation.result.summary.hf_now,
-      grossLeverage: simulation.result.summary.gross_leverage,
-      minHealthFactor: input.risk_limits?.min_hf,
-      maxLeverage: input.risk_limits?.max_leverage,
-    });
-
-    if (!postCheck.ok) {
-      simulation.result.canExecute = false;
-      simulation.result.reason = postCheck.reasons.join("; ");
-    } else {
-      simulation.result.canExecute = true;
-    }
-
-    const paymentHeader = c.req.header("X-PAYMENT");
-    if (paymentHeader) {
-      try {
-        const decoded = exact.evm.decodePayment(paymentHeader);
-        simulation.result.receipt.payment = decoded;
-      } catch (error) {
-        simulation.result.receipt.payment = { error: String(error) };
-      }
-    }
-
-    return c.json(simulation.result satisfies LoopingSimulationResult);
-  } catch (error) {
-    if (error instanceof HTTPException) {
-      throw error;
-    }
-    console.error("simulateLooping error", error);
-    throw new HTTPException(500, {
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
+const simulateLoopingEntrypoint = createSimulateLoopingEntrypoint({
+  network: NETWORK,
 });
 
-export default app;
+addEntrypoint(simulateLoopingEntrypoint);
+
+const honoApp = new Hono();
+
+honoApp.use("*", async (c) => agentApp.fetch(c.req.raw));
+
+const start = () => {
+  console.log("Agent ready for deployment (Hono + AgentKit)");
+  const payTo = process.env.PAY_TO!;
+  console.log(`   Network: ${NETWORK}`);
+  console.log(`💰 Payments enabled -> ${payTo}`);
+};
+
+const agentWithStart = Object.assign(honoApp, {
+  start,
+  payments,
+  simulateLoopingEntrypoint,
+}) as typeof honoApp & {
+  start: typeof start;
+  payments: typeof payments;
+  simulateLoopingEntrypoint: typeof simulateLoopingEntrypoint;
+};
+
+export default agentWithStart;
+export { payments, simulateLoopingEntrypoint };

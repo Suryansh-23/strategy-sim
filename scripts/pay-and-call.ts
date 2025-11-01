@@ -1,4 +1,10 @@
-import { wrapFetchWithPayment, createSigner, decodeXPaymentResponse } from "x402-fetch";
+import {
+  wrapFetchWithPayment,
+  createSigner,
+  decodeXPaymentResponse,
+} from "x402-fetch";
+
+import type { LoopingSimulationResult } from "../src/types.js";
 
 interface SimulationInput {
   protocol: "morpho-blue";
@@ -32,6 +38,17 @@ const defaultInput: SimulationInput = {
     USDCUSD: 1,
   },
 };
+
+function isLoopingSimulationResult(
+  value: unknown,
+): value is LoopingSimulationResult {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "summary" in value &&
+    typeof (value as { summary?: unknown }).summary === "object"
+  );
+}
 
 let input: SimulationInput = defaultInput;
 
@@ -67,7 +84,7 @@ async function main() {
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ input }),
   });
 
   const raw = await response.text();
@@ -85,16 +102,40 @@ async function main() {
   }
 
   try {
-    const json = JSON.parse(raw);
-    console.log("\nSimulation Result:");
-    console.log(JSON.stringify(json, null, 2));
+    const parsed = JSON.parse(raw) as unknown;
 
-    if (json.summary) {
+    const envelope =
+      parsed && typeof parsed === "object" && parsed !== null && "output" in parsed
+        ? (parsed as {
+            run_id?: string;
+            status?: string;
+            output?: LoopingSimulationResult | null;
+            error?: unknown;
+          })
+        : null;
+
+    const resultCandidate = envelope?.output ?? parsed;
+    const result = isLoopingSimulationResult(resultCandidate)
+      ? resultCandidate
+      : null;
+
+    console.log("\nSimulation Result:");
+    console.log(JSON.stringify(parsed, null, 2));
+
+    if (envelope?.run_id) {
+      console.log(`\nRun: ${envelope.run_id} (${envelope.status ?? "unknown"})`);
+    }
+
+    if (result) {
+      const { summary } = result;
       console.log("\nSummary:");
-      console.log(`   Loops: ${json.summary.loops_done}`);
-      console.log(`   HF: ${json.summary.hf_now.toFixed(4)}`);
-      console.log(`   Gross leverage: ${json.summary.gross_leverage.toFixed(4)}`);
-      console.log(`   Net APR: ${(json.summary.net_apr * 100).toFixed(2)}%`);
+      console.log(`   Loops: ${summary.loops_done}`);
+      console.log(`   HF: ${summary.hf_now.toFixed(4)}`);
+      console.log(`   Gross leverage: ${summary.gross_leverage.toFixed(4)}`);
+      console.log(`   Net APR: ${(summary.net_apr * 100).toFixed(2)}%`);
+    } else if (envelope?.error) {
+      console.log("\nServer reported error:");
+      console.log(JSON.stringify(envelope.error, null, 2));
     }
   } catch {
     console.log(raw);

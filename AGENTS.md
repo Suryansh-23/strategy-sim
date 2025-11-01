@@ -238,6 +238,9 @@ To ensure a robust, maintainable implementation, adhere to the following princip
 - Kyber quote caching upgraded to an LRU strategy with configurable max entries/TTL to align with Phase 3 performance goals.
 - Default policy envelope enforced: HF ≥ 1.1 and leverage ≤ 12 unless overrides are passed in `risk_limits`.
 - Simulator version bumped to `0.3.0`; manifests/README updated to advertise multi-market support and new environment knobs.
+- Rate limiting (30 req/min/IP by default) and idempotency caching (`Idempotency-Key` header) implemented per Phase 3 quotas. Cached responses persist for 10 minutes unless configured.
+- Payment middleware now derives its ERC-20 asset from env; set `PAYMENT_ASSET_ADDRESS` when targeting Base Sepolia (defaults to Base mainnet USDC).
+- Agent now leverages `@lucid-dreams/agent-kit` for payment handling/manifest generation, matching the Slippage Sentinel pattern.
 
 ## Instructions for the Coding Agent
 

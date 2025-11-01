@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "bun api/index.ts",
+    "dev": "bun --watch scripts/start.ts",
     "test": "bun test",
     "lint": "eslint src test scripts --ext .ts",
     "pay:call": "bun run scripts/pay-and-call.ts",
-    "manifest": "bun run scripts/generate-manifest.ts"
+    "manifest": "bun run scripts/generate-manifest.ts",
+    "test:loop": "bun run scripts/test-loop.ts"
   },
   "dependencies": {
+    "@lucid-dreams/agent-kit": "^0.2.22",
     "@hono/node-server": "^1.12.0",
     "axios": "^1.13.1",
     "bignumber.js": "^9.3.1",
@@ -24,6 +26,7 @@
     "@types/node": "^24.9.2",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
-    "eslint": "^9.38.0"
+    "eslint": "^9.38.0",
+    "viem": "latest"
   }
 }

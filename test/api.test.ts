@@ -19,7 +19,7 @@ describe("simulateLooping API", () => {
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify(basePayload),
+      body: JSON.stringify({ input: basePayload }),
     });
 
     expect(response.status).toBe(402);

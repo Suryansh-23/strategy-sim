@@ -15,7 +15,7 @@ Simulate recursive lending loops on Morpho Blue (Base) before committing on-chai
    ```
 3. **Run the development server**
    ```bash
-   bun run dev
+   bun run dev          # add -- --debug for verbose logging
    ```
    The agent listens on `http://localhost:8787` and exposes `/.well-known/agent.json` plus the paid entrypoint `/entrypoints/simulateLooping/invoke`.
 
@@ -30,6 +30,7 @@ Optional environment overrides:
 - `START_CAPITAL`, `TARGET_LTV`, `LOOPS` – quick value overrides
 - `PRICE_WETHUSD` – supply a deterministic spot price (or add additional symbols like `WBTCUSD`)
 - `MORPHO_USE_LIVE=1` – force live market fetch (otherwise automatic with fallback)
+- `TEST_USE_SWAP_MODEL=1` – skip Kyber and use a built-in constant-product swap model (handy on testnets)
 
 You can also pass a raw payload as the second CLI argument:
 ```bash
@@ -40,16 +41,19 @@ bun run pay:call '{"protocol":"morpho-blue","chain":"base","collateral":{"symbol
 
 - **Method:** `POST /entrypoints/simulateLooping/invoke`
 - **Price:** `$0.20 USD` via x402
+- **Body:** `{ "input": { ...simulation fields... } }`
 - **Required fields:**
   ```json
   {
-    "protocol": "morpho-blue",
-    "chain": "base",
-    "collateral": { "symbol": "WETH", "decimals": 18 },
-    "debt": { "symbol": "USDC", "decimals": 6 },
-    "start_capital": "1.0",
-    "target_ltv": 0.6,
-    "loops": 3
+    "input": {
+      "protocol": "morpho-blue",
+      "chain": "base",
+      "collateral": { "symbol": "WETH", "decimals": 18 },
+      "debt": { "symbol": "USDC", "decimals": 6 },
+      "start_capital": "1.0",
+      "target_ltv": 0.6,
+      "loops": 3
+    }
   }
   ```
 - **Optional:** `price`, `swap_model`, `oracle`, `rates`, `horizon_days`, `scenarios`, `risk_limits`
@@ -65,6 +69,11 @@ Token specs accept optional on-chain addresses for disambiguation when multiple 
 ```
 
 Without an address the simulator resolves markets by symbol/decimals on Base; provide addresses for faster lookups and to avoid ambiguity.
+
+Headers:
+- `Idempotency-Key` – optional string; when supplied, repeat requests return the cached response (up to the TTL) without recharging the 402 mandate.
+
+Rate limits: default 30 requests per minute per IP (configurable via env). HTTP 429 is returned when exceeded. Use `bun run test:loop` (add `--pay` to include a payment attempt) to send a sample request and verify idempotent replay behaviour locally.
 
 Supported stress scenarios:
 - `price_jump` – apply collateral price shock at a specific day
@@ -93,9 +102,23 @@ bun run lint         # linting
 | `MORPHO_LIVE_DISABLED` | Optional | Set to `1` to use fixture parameters only |
 | `MORPHO_LIVE_CACHE_MS` | Optional | Cache TTL for live market snapshot (default 30000ms) |
 | `MORPHO_MARKET_LIST_CACHE_MS` | Optional | Cache TTL for market list query (default 120000ms) |
+| `PAYMENT_ASSET_ADDRESS` | Yes on non-base | ERC-20 address x402 should charge (default: Base USDC) |
+| `PAYMENT_ASSET_DECIMALS` | Optional | Asset decimals (default 6) |
+| `PAYMENT_ASSET_NAME` | Optional | Asset EIP-712 name (default `USD Coin`) |
+| `PAYMENT_ASSET_VERSION` | Optional | Asset EIP-712 version (default `2`) |
+| `RATE_LIMIT_WINDOW_MS` | Optional | Rate limit window (default 60000) |
+| `RATE_LIMIT_MAX` | Optional | Max requests per window per IP (default 30) |
+| `IDEMPOTENCY_TTL_MS` | Optional | TTL for idempotent response cache (default 600000) |
+| `IDEMPOTENCY_CACHE_MAX` | Optional | Max cached idempotent responses (default 512) |
 | `DEFAULT_MIN_HEALTH_FACTOR` | Optional | Policy minimum HF (default 1.1) |
 | `DEFAULT_MAX_LEVERAGE` | Optional | Policy maximum leverage (default 12) |
 | `KYBER_AGGREGATOR_BASE_URL` | Optional | Override Kyber GET route base URL |
+| `KYBER_CLIENT_ID` | Optional | Value for Kyber `X-Client-Id` header |
+| `KYBER_CLIENT_SOURCE` | Optional | Value in Kyber `clientData.source` payload |
+| `KYBER_INCLUDE_SOURCES` | Optional | Comma-separated DEX IDs to force-include |
+| `KYBER_EXCLUDE_SOURCES` | Optional | Comma-separated DEX IDs to exclude |
+| `KYBER_ORIGIN_ADDRESS` | Optional | Origin wallet address to unlock RFQ liquidity |
+| `PAY_AND_CALL_MAX_USDC` | Optional | Max USDC spend (default 0.30) for helper script |
 | `PORT` | Optional | Local port for dev server (default: 8787) |
 
 ## Project Layout

@@ -29,8 +29,8 @@ interface LoadParams {
 
 const GRAPH_URL =
   process.env.MORPHO_BLUE_GRAPH_URL || "https://blue-api.morpho.org/graphql";
-const CACHE_TTL_MS = Number(process.env.MORPHO_LIVE_CACHE_MS || 30_000);
-const MARKET_LIST_CACHE_MS = Number(process.env.MORPHO_MARKET_LIST_CACHE_MS || 120_000);
+const CACHE_TTL_MS = 30_000;
+const MARKET_LIST_CACHE_MS = 120_000;
 const BASE_CHAIN_ID = 8453;
 
 interface GraphAsset {
@@ -98,7 +98,10 @@ const WETH_USDC_FIXTURE: MorphoMarketSnapshot = {
   fetchedAt: Date.now(),
 };
 
-let cachedLiveSnapshots = new Map<string, { snapshot: MorphoMarketSnapshot; expiresAt: number }>();
+let cachedLiveSnapshots = new Map<
+  string,
+  { snapshot: MorphoMarketSnapshot; expiresAt: number }
+>();
 let cachedMarketList:
   | {
       items: GraphMarketItem[];
@@ -108,8 +111,7 @@ let cachedMarketList:
 
 function shouldSkipLiveFetch(): boolean {
   return (
-    process.env.MORPHO_LIVE_DISABLED === "1" ||
-    process.env.NODE_ENV === "test"
+    process.env.MORPHO_LIVE_DISABLED === "1" || process.env.NODE_ENV === "test"
   );
 }
 
@@ -117,7 +119,9 @@ function sanitizeSymbol(symbol: string): string {
   return symbol.trim().toUpperCase();
 }
 
-function parsePriceUsd(value: number | string | null | undefined): number | undefined {
+function parsePriceUsd(
+  value: number | string | null | undefined
+): number | undefined {
   if (value === null || value === undefined) return undefined;
   const price = Number(value);
   return Number.isFinite(price) ? price : undefined;
@@ -177,7 +181,7 @@ async function fetchMarketList(): Promise<GraphMarketItem[]> {
     },
     {
       timeout: Number(process.env.MORPHO_LIVE_TIMEOUT_MS || 3_000),
-    },
+    }
   );
 
   const items = response.data?.data?.markets?.items ?? [];
@@ -193,19 +197,21 @@ function tokenMatches(asset: GraphAsset, token: TokenSpec): boolean {
     ? asset.address.toLowerCase() === token.address.toLowerCase()
     : true;
   if (!addressMatches) return false;
-  const symbolMatches = sanitizeSymbol(asset.symbol) === sanitizeSymbol(token.symbol);
+  const symbolMatches =
+    sanitizeSymbol(asset.symbol) === sanitizeSymbol(token.symbol);
   const decimalsMatch = asset.decimals === token.decimals;
   return symbolMatches && decimalsMatch;
 }
 
 async function resolveMarket(
   collateral: TokenSpec,
-  debt: TokenSpec,
+  debt: TokenSpec
 ): Promise<GraphMarketItem | undefined> {
   const markets = await fetchMarketList();
-  return markets.find((item) =>
-    tokenMatches(item.collateralAsset, collateral) &&
-    tokenMatches(item.loanAsset, debt),
+  return markets.find(
+    (item) =>
+      tokenMatches(item.collateralAsset, collateral) &&
+      tokenMatches(item.loanAsset, debt)
   );
 }
 
@@ -215,7 +221,8 @@ function buildDefaultPrices(item: GraphMarketItem): Record<string, number> {
   const loanPrice = parsePriceUsd(item.loanAsset.priceUsd);
 
   if (collateralPrice !== undefined) {
-    prices[`${sanitizeSymbol(item.collateralAsset.symbol)}USD`] = collateralPrice;
+    prices[`${sanitizeSymbol(item.collateralAsset.symbol)}USD`] =
+      collateralPrice;
   }
   if (loanPrice !== undefined) {
     prices[`${sanitizeSymbol(item.loanAsset.symbol)}USD`] = loanPrice;
@@ -230,7 +237,7 @@ function buildDefaultPrices(item: GraphMarketItem): Record<string, number> {
 function buildLiveSnapshot(
   item: GraphMarketItem,
   collateral: TokenSpec,
-  debt: TokenSpec,
+  debt: TokenSpec
 ): MorphoMarketSnapshot {
   const supplyApr = item.state?.supplyApy ?? WETH_USDC_FIXTURE.rates.supplyApr;
   const borrowApr = item.state?.borrowApy ?? WETH_USDC_FIXTURE.rates.borrowApr;
@@ -278,7 +285,7 @@ function buildLiveSnapshot(
 
 async function fetchLiveSnapshot(
   collateral: TokenSpec,
-  debt: TokenSpec,
+  debt: TokenSpec
 ): Promise<MorphoMarketSnapshot | null> {
   try {
     const market = await resolveMarket(collateral, debt);
@@ -306,12 +313,14 @@ function cacheKey(collateral: TokenSpec, debt: TokenSpec): string {
 }
 
 export async function loadMorphoMarketSnapshot(
-  params: LoadParams,
+  params: LoadParams
 ): Promise<MorphoMarketSnapshot> {
   const { protocol, chain, collateral, debt } = params;
 
   if (protocol !== "morpho-blue" || sanitizeSymbol(chain) !== "BASE") {
-    throw new Error("Unsupported protocol or chain; only Morpho Blue on Base is supported");
+    throw new Error(
+      "Unsupported protocol or chain; only Morpho Blue on Base is supported"
+    );
   }
 
   const now = Date.now();
@@ -351,7 +360,7 @@ export async function loadMorphoMarketSnapshot(
   }
 
   throw new Error(
-    `Unable to resolve Morpho Blue market for ${collateral.symbol}/${debt.symbol} on Base. Provide token addresses or ensure the market exists.`,
+    `Unable to resolve Morpho Blue market for ${collateral.symbol}/${debt.symbol} on Base. Provide token addresses or ensure the market exists.`
   );
 }
 
