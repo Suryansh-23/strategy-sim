@@ -51,6 +51,14 @@ const DEFAULT_LOOPS = 3;
 const DEFAULT_HORIZON = 30;
 const USE_SWAP_MODEL = "1";
 
+const headersToObject = (headers: Headers): Record<string, string> => {
+  const result: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
+};
+
 const args = new Set(process.argv.slice(2));
 const endpoint =
   [...args].find((arg) => arg.startsWith("http")) ?? DEFAULT_ENDPOINT;
@@ -168,18 +176,12 @@ async function main() {
     headers,
     body: JSON.stringify({ input: payload }),
   });
-  console.log(
-    "   Response headers:",
-    Object.fromEntries(response.headers.entries())
-  );
+  console.log("   Response headers:", headersToObject(response.headers));
 
   const raw = await response.text();
 
   console.log(`\nHTTP ${response.status} ${response.statusText}`);
-  console.log(
-    "   Response headers:",
-    Object.fromEntries(response.headers.entries())
-  );
+  console.log("   Response headers:", headersToObject(response.headers));
 
   const paymentHeader = response.headers.get("x-payment-response");
   if (paymentHeader) {
@@ -241,10 +243,7 @@ async function main() {
   console.log(
     `   Replay status: ${replay.status} ${replay.statusText} (X-Idempotent-Replay=${replayHeader})`
   );
-  console.log(
-    "   Replay headers:",
-    Object.fromEntries(replay.headers.entries())
-  );
+  console.log("   Replay headers:", headersToObject(replay.headers));
 }
 
 main().catch((error) => {

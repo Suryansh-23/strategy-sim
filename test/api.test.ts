@@ -23,7 +23,9 @@ describe("simulateLooping API", () => {
     });
 
     expect(response.status).toBe(402);
-    const body = await response.json();
+    const body = (await response.json()) as {
+      x402Version?: number;
+    };
     expect(body.x402Version).toBe(1);
   });
 });
